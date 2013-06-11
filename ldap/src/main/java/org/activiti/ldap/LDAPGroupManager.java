@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.naming.directory.InvalidAttributeValueException;
+
 import org.activiti.engine.ActivitiException;
 import org.activiti.engine.identity.Group;
 import org.activiti.engine.impl.GroupQueryImpl;
@@ -86,6 +88,7 @@ public class LDAPGroupManager extends GroupEntityManager
         {
             searchQuery.append("(&(cn=*)(objectclass=" + connectionParams.getLdapGroupObject() + "))");
         }
+
         LOG.debug("searchQuery: " + searchQuery.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
@@ -146,8 +149,8 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public GroupEntity findGroupById(final String groupId)
     {
-
         LOG.debug("findGroupById: " + groupId);
+
         final GroupEntity group = new GroupEntity();
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
@@ -158,28 +161,11 @@ public class LDAPGroupManager extends GroupEntityManager
             while (cursor.next())
             {
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                // LOG.debug("entry: "+response.toString());
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
-                    final String key = attribute.getId();
-                    if ("cn".equalsIgnoreCase(key))
-                    {
-                        // LOG.debug("atrribute: "+attribute.getString());
-                        group.setId(attribute.getString());
-                        group.setName(attribute.getString());
-                        if (attribute.getString().equalsIgnoreCase("user")
-                            || attribute.getString().equalsIgnoreCase("admin"))
-                        {
-                            group.setType("security-role");
-                        }
-                        else
-                        {
-                            group.setType("assignment");
-                        }
-
-                    }
+                    setGroupAttributes(group, attribute);
                 }
                 break;
             }
@@ -220,21 +206,7 @@ public class LDAPGroupManager extends GroupEntityManager
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
-                    final String key = attribute.getId();
-                    if ("cn".equalsIgnoreCase(key))
-                    {
-                        group.setId(attribute.getString());
-                        group.setName(attribute.getString());
-                        if (attribute.getString().equalsIgnoreCase("user")
-                            || attribute.getString().equalsIgnoreCase("admin"))
-                        {
-                            group.setType("security-role");
-                        }
-                        else
-                        {
-                            group.setType("assignment");
-                        }
-                    }
+                    setGroupAttributes(group, attribute);
                 }
 
                 groupList.add(group);
@@ -251,5 +223,25 @@ public class LDAPGroupManager extends GroupEntityManager
         LDAPConnectionUtil.closeConnection(connection);
 
         return groupList;
+    }
+
+    private void setGroupAttributes(final Group group, final EntryAttribute attribute)
+        throws InvalidAttributeValueException
+    {
+        final String key = attribute.getId();
+        if ("cn".equalsIgnoreCase(key))
+        {
+            group.setId(attribute.getString());
+            group.setName(attribute.getString());
+            if (attribute.getString().equalsIgnoreCase("user")
+                || attribute.getString().equalsIgnoreCase("admin"))
+            {
+                group.setType("security-role");
+            }
+            else
+            {
+                group.setType("assignment");
+            }
+        }
     }
 }

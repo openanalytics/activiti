@@ -5,6 +5,7 @@ public class LDAPConnectionParams
 {
     private String ldapServer;
     private int ldapPort;
+
     private String ldapUser;
     private String ldapPassword;
 

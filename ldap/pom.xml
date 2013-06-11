@@ -5,7 +5,7 @@
     <groupId>biemond</groupId>
     <artifactId>activiti-ldap</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
 
     <properties>
         <activiti.version>5.12.1</activiti.version>
@@ -23,7 +23,9 @@
             <groupId>org.activiti</groupId>
             <artifactId>activiti-engine</artifactId>
             <version>${activiti.version}</version>
+            <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>org.apache.directory.client.ldap</groupId>
             <artifactId>ldap-client-api</artifactId>

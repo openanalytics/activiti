@@ -1,22 +1,15 @@
-Activiti code                     
-==============                     
-             
+Activiti code
+==============
+
 LDAP module for Activiti works with AD, OpenLDAP etc with support for the Manage Tab of the explorer application  
 
 ldap groups with admin and user as cn have security-role as type  
-rest of the group are automatically jave assignment as type               
-
-requires the following jars  
-activiti-engine-5.12.jar  
-ldap-client-api-0.1.jar  
-shared-all-0.9.18.jar  
-
+rest of the group are automatically jave assignment as type
 
 Change the following in the activiti-explorer application
-                                 
 
 activiti-standalone-context.xml 
------------------------------------    
+-----------------------------------
 
     <bean id="processEngineConfiguration" class="org.activiti.spring.SpringProcessEngineConfiguration">
       <property name="dataSource" ref="dataSource" />

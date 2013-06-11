@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.naming.directory.InvalidAttributeValueException;
+
 import org.activiti.engine.ActivitiException;
 import org.activiti.engine.identity.User;
 import org.activiti.engine.impl.Page;
@@ -50,15 +52,18 @@ public class LDAPUserManager extends UserEntityManager
     public UserEntity findUserById(final String userId)
     {
         LOG.debug("findUserById: " + userId);
+
         final UserEntity user = new UserEntity();
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
-            LOG.debug("search: " + "(&(cn=" + userId + ")");
+            final String filter = "(&(cn=" + userId + "," + connectionParams.getLdapUserBase()
+                                  + ")(objectclass=" + connectionParams.getLdapUserObject() + "))";
+            LOG.debug("search: " + filter);
 
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
-                "(&(cn=" + userId + "," + connectionParams.getLdapUserBase() + ")(objectclass="
-                                + connectionParams.getLdapUserObject() + "))", SearchScope.ONELEVEL, "*");
+                filter, SearchScope.ONELEVEL, "*");
+
             while (cursor.next())
             {
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
@@ -66,29 +71,12 @@ public class LDAPUserManager extends UserEntityManager
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
-                    final String key = attribute.getId();
-                    if ("cn".equalsIgnoreCase(key))
-                    {
-                        user.setId(attribute.getString());
-                    }
-                    else if ("sn".equalsIgnoreCase(key))
-                    {
-                        user.setLastName(attribute.getString());
-                    }
-                    else if ("givenName".equalsIgnoreCase(key))
-                    {
-                        user.setFirstName(attribute.getString());
-                    }
-                    else if ("mail".equalsIgnoreCase(key))
-                    {
-                        user.setEmail(attribute.getString());
-                    }
+                    setUserAttribute(attribute, user);
                 }
                 break;
             }
 
             cursor.close();
-
         }
         catch (final Exception e)
         {
@@ -119,19 +107,18 @@ public class LDAPUserManager extends UserEntityManager
             searchQuery.append("(&(cn=")
                 .append(query.getId())
                 .append(")(objectclass=" + connectionParams.getLdapUserObject() + "))");
-
         }
         else if (StringUtils.isNotEmpty(query.getLastName()))
         {
             searchQuery.append("(&(sn=")
                 .append(query.getLastName())
                 .append(")(objectclass=" + connectionParams.getLdapUserObject() + "))");
-
         }
         else
         {
             searchQuery.append("(&(cn=*)(objectclass=" + connectionParams.getLdapUserObject() + "))");
         }
+
         LOG.debug("searchQuery: " + searchQuery.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
@@ -144,33 +131,17 @@ public class LDAPUserManager extends UserEntityManager
                 final User user = new UserEntity();
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
+
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
-                    final String key = attribute.getId();
-                    if ("cn".equalsIgnoreCase(key))
-                    {
-                        user.setId(attribute.getString());
-                    }
-                    else if ("sn".equalsIgnoreCase(key))
-                    {
-                        user.setLastName(attribute.getString());
-                    }
-                    else if ("givenName".equalsIgnoreCase(key))
-                    {
-                        user.setFirstName(attribute.getString());
-                    }
-                    else if ("mail".equalsIgnoreCase(key))
-                    {
-                        user.setEmail(attribute.getString());
-                    }
+                    setUserAttribute(attribute, user);
                 }
 
                 userList.add(user);
             }
 
             cursor.close();
-
         }
         catch (final Exception e)
         {
@@ -193,28 +164,49 @@ public class LDAPUserManager extends UserEntityManager
     public Boolean checkPassword(final String userId, final String password)
     {
         LOG.debug("checkPassword");
-        boolean credentialsValid = false;
+
         final LdapConnection connection = new LdapConnection(connectionParams.getLdapServer(),
             connectionParams.getLdapPort());
+
         try
         {
-            LOG.debug("checkPassword: " + "cn=" + userId + "," + connectionParams.getLdapUserBase());
-            final BindResponse response = connection.bind(
-                "cn=" + userId + "," + connectionParams.getLdapUserBase(), password);
+            final String userDn = "cn=" + userId + "," + connectionParams.getLdapUserBase();
+            LOG.debug("checkPassword: " + userDn);
+
+            final BindResponse response = connection.bind(userDn, password);
             LOG.debug("result: " + response.getLdapResult().getResultCode());
-            if (response.getLdapResult().getResultCode() == ResultCodeEnum.SUCCESS)
-            {
-                credentialsValid = true;
-            }
+
+            return (response.getLdapResult().getResultCode() == ResultCodeEnum.SUCCESS);
         }
         catch (final Exception e)
         {
             throw new ActivitiException("LDAP connection bind failure", e);
-
         }
+        finally
+        {
+            LDAPConnectionUtil.closeConnection(connection);
+        }
+    }
 
-        LDAPConnectionUtil.closeConnection(connection);
-
-        return credentialsValid;
+    private void setUserAttribute(final EntryAttribute attribute, final User user)
+        throws InvalidAttributeValueException
+    {
+        final String key = attribute.getId();
+        if ("cn".equalsIgnoreCase(key))
+        {
+            user.setId(attribute.getString());
+        }
+        else if ("sn".equalsIgnoreCase(key))
+        {
+            user.setLastName(attribute.getString());
+        }
+        else if ("givenName".equalsIgnoreCase(key))
+        {
+            user.setFirstName(attribute.getString());
+        }
+        else if ("mail".equalsIgnoreCase(key))
+        {
+            user.setEmail(attribute.getString());
+        }
     }
 }
