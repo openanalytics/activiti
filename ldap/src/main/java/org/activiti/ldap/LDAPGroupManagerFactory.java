@@ -7,10 +7,9 @@ import org.activiti.engine.impl.persistence.entity.GroupEntityManager;
 
 public class LDAPGroupManagerFactory implements SessionFactory
 {
+    private final LDAPConnectionParams connectionParams;
 
-    private LDAPConnectionParams connectionParams;
-
-    public LDAPGroupManagerFactory(LDAPConnectionParams params)
+    public LDAPGroupManagerFactory(final LDAPConnectionParams params)
     {
         this.connectionParams = params;
     }
@@ -26,5 +25,4 @@ public class LDAPGroupManagerFactory implements SessionFactory
     {
         return new LDAPGroupManager(connectionParams);
     }
-
 }

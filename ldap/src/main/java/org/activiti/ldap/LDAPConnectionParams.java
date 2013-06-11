@@ -19,7 +19,7 @@ public class LDAPConnectionParams
         return ldapServer;
     }
 
-    public void setLdapServer(String ldapServer)
+    public void setLdapServer(final String ldapServer)
     {
         this.ldapServer = ldapServer;
     }
@@ -29,7 +29,7 @@ public class LDAPConnectionParams
         return ldapPort;
     }
 
-    public void setLdapPort(int ldapPort)
+    public void setLdapPort(final int ldapPort)
     {
         this.ldapPort = ldapPort;
     }
@@ -39,7 +39,7 @@ public class LDAPConnectionParams
         return ldapUser;
     }
 
-    public void setLdapUser(String ldapUser)
+    public void setLdapUser(final String ldapUser)
     {
         this.ldapUser = ldapUser;
     }
@@ -49,7 +49,7 @@ public class LDAPConnectionParams
         return ldapPassword;
     }
 
-    public void setLdapPassword(String ldapPassword)
+    public void setLdapPassword(final String ldapPassword)
     {
         this.ldapPassword = ldapPassword;
     }
@@ -59,7 +59,7 @@ public class LDAPConnectionParams
         return ldapGroupBase;
     }
 
-    public void setLdapGroupBase(String ldapGroupBase)
+    public void setLdapGroupBase(final String ldapGroupBase)
     {
         this.ldapGroupBase = ldapGroupBase;
     }
@@ -69,7 +69,7 @@ public class LDAPConnectionParams
         return ldapUserBase;
     }
 
-    public void setLdapUserBase(String ldapUserBase)
+    public void setLdapUserBase(final String ldapUserBase)
     {
         this.ldapUserBase = ldapUserBase;
     }
@@ -79,7 +79,7 @@ public class LDAPConnectionParams
         return ldapGroupObject;
     }
 
-    public void setLdapGroupObject(String ldapGroupObject)
+    public void setLdapGroupObject(final String ldapGroupObject)
     {
         this.ldapGroupObject = ldapGroupObject;
     }
@@ -89,7 +89,7 @@ public class LDAPConnectionParams
         return ldapUserObject;
     }
 
-    public void setLdapUserObject(String ldapUserObject)
+    public void setLdapUserObject(final String ldapUserObject)
     {
         this.ldapUserObject = ldapUserObject;
     }

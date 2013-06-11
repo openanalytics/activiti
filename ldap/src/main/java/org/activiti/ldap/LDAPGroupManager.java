@@ -12,6 +12,8 @@ import org.activiti.engine.impl.Page;
 import org.activiti.engine.impl.persistence.entity.GroupEntity;
 import org.activiti.engine.impl.persistence.entity.GroupEntityManager;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.message.SearchResponse;
 import org.apache.directory.ldap.client.api.message.SearchResultEntry;
@@ -21,6 +23,7 @@ import org.apache.directory.shared.ldap.filter.SearchScope;
 
 public class LDAPGroupManager extends GroupEntityManager
 {
+    private static final Log LOG = LogFactory.getLog(LDAPGroupManager.class);
 
     private final LDAPConnectionParams connectionParams;
 
@@ -50,7 +53,7 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public List<Group> findGroupByQueryCriteria(final GroupQueryImpl query, final Page page)
     {
-        System.out.println("findGroupByQueryCriteria");
+        LOG.debug("findGroupByQueryCriteria");
 
         final List<Group> groupList = new ArrayList<Group>();
 
@@ -83,7 +86,7 @@ public class LDAPGroupManager extends GroupEntityManager
         {
             searchQuery.append("(&(cn=*)(objectclass=" + connectionParams.getLdapGroupObject() + "))");
         }
-        System.out.println("searchQuery: " + searchQuery.toString());
+        LOG.debug("searchQuery: " + searchQuery.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
@@ -94,7 +97,6 @@ public class LDAPGroupManager extends GroupEntityManager
             {
                 final Group group = new GroupEntity();
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                // System.out.println("entry: "+response.toString());
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
                 while (itEntry.hasNext())
                 {
@@ -102,7 +104,7 @@ public class LDAPGroupManager extends GroupEntityManager
                     final String key = attribute.getId();
                     if ("cn".equalsIgnoreCase(key))
                     {
-                        // System.out.println("atrribute: "+attribute.getString());
+                        // LOG.debug("atrribute: "+attribute.getString());
                         group.setId(attribute.getString());
                         group.setName(attribute.getString());
                         if (attribute.getString().equalsIgnoreCase("user")
@@ -137,7 +139,7 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public long findGroupCountByQueryCriteria(final GroupQueryImpl query)
     {
-        System.out.println("findGroupCountByQueryCriteria");
+        LOG.debug("findGroupCountByQueryCriteria");
         return findGroupByQueryCriteria(query, null).size();
     }
 
@@ -145,7 +147,7 @@ public class LDAPGroupManager extends GroupEntityManager
     public GroupEntity findGroupById(final String groupId)
     {
 
-        System.out.println("findGroupById: " + groupId);
+        LOG.debug("findGroupById: " + groupId);
         final GroupEntity group = new GroupEntity();
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
@@ -156,7 +158,7 @@ public class LDAPGroupManager extends GroupEntityManager
             while (cursor.next())
             {
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                // System.out.println("entry: "+response.toString());
+                // LOG.debug("entry: "+response.toString());
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
                 while (itEntry.hasNext())
                 {
@@ -164,7 +166,7 @@ public class LDAPGroupManager extends GroupEntityManager
                     final String key = attribute.getId();
                     if ("cn".equalsIgnoreCase(key))
                     {
-                        // System.out.println("atrribute: "+attribute.getString());
+                        // LOG.debug("atrribute: "+attribute.getString());
                         group.setId(attribute.getString());
                         group.setName(attribute.getString());
                         if (attribute.getString().equalsIgnoreCase("user")
@@ -199,14 +201,13 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public List<Group> findGroupsByUser(final String userId)
     {
-        System.out.println("findGroupsByUser for user: " + userId);
+        LOG.debug("findGroupsByUser for user: " + userId);
         final List<Group> groupList = new ArrayList<Group>();
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
-            System.out.println("search: " + "(member= cn=" + userId + ","
-                               + connectionParams.getLdapUserBase() + ")");
+            LOG.debug("search: " + "(member= cn=" + userId + "," + connectionParams.getLdapUserBase() + ")");
 
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
                 "(&(member= cn=" + userId + "," + connectionParams.getLdapUserBase() + ")(objectclass="
@@ -215,7 +216,6 @@ public class LDAPGroupManager extends GroupEntityManager
             {
                 final Group group = new GroupEntity();
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                // System.out.println("entry: "+response.toString());
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
                 while (itEntry.hasNext())
                 {
@@ -223,7 +223,6 @@ public class LDAPGroupManager extends GroupEntityManager
                     final String key = attribute.getId();
                     if ("cn".equalsIgnoreCase(key))
                     {
-                        // System.out.println("atrribute: "+attribute.getString());
                         group.setId(attribute.getString());
                         group.setName(attribute.getString());
                         if (attribute.getString().equalsIgnoreCase("user")

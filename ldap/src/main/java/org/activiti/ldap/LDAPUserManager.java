@@ -12,6 +12,8 @@ import org.activiti.engine.impl.UserQueryImpl;
 import org.activiti.engine.impl.persistence.entity.UserEntity;
 import org.activiti.engine.impl.persistence.entity.UserEntityManager;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.message.BindResponse;
 import org.apache.directory.ldap.client.api.message.SearchResponse;
@@ -23,47 +25,48 @@ import org.apache.directory.shared.ldap.message.ResultCodeEnum;
 
 public class LDAPUserManager extends UserEntityManager
 {
+    private static final Log LOG = LogFactory.getLog(LDAPUserManager.class);
 
-    private LDAPConnectionParams connectionParams;
+    private final LDAPConnectionParams connectionParams;
 
-    public LDAPUserManager(LDAPConnectionParams params)
+    public LDAPUserManager(final LDAPConnectionParams params)
     {
         this.connectionParams = params;
     }
 
     @Override
-    public User createNewUser(String userId)
+    public User createNewUser(final String userId)
     {
         throw new ActivitiException("LDAP user manager doesn't support creating a new user");
     }
 
     @Override
-    public void insertUser(User user)
+    public void insertUser(final User user)
     {
         throw new ActivitiException("LDAP user manager doesn't support inserting a new user");
     }
 
     @Override
-    public UserEntity findUserById(String userId)
+    public UserEntity findUserById(final String userId)
     {
-        System.out.println("findUserById: " + userId);
-        UserEntity user = new UserEntity();
-        LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
+        LOG.debug("findUserById: " + userId);
+        final UserEntity user = new UserEntity();
+        final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
-            System.out.println("search: " + "(&(cn=" + userId + ")");
+            LOG.debug("search: " + "(&(cn=" + userId + ")");
 
-            Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
+            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
                 "(&(cn=" + userId + "," + connectionParams.getLdapUserBase() + ")(objectclass="
                                 + connectionParams.getLdapUserObject() + "))", SearchScope.ONELEVEL, "*");
             while (cursor.next())
             {
-                SearchResultEntry response = (SearchResultEntry) cursor.get();
-                Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
+                final SearchResultEntry response = (SearchResultEntry) cursor.get();
+                final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
                 while (itEntry.hasNext())
                 {
-                    EntryAttribute attribute = itEntry.next();
-                    String key = attribute.getId();
+                    final EntryAttribute attribute = itEntry.next();
+                    final String key = attribute.getId();
                     if ("cn".equalsIgnoreCase(key))
                     {
                         user.setId(attribute.getString());
@@ -87,7 +90,7 @@ public class LDAPUserManager extends UserEntityManager
             cursor.close();
 
         }
-        catch (Exception e)
+        catch (final Exception e)
         {
             throw new ActivitiException("LDAP connection search failure", e);
         }
@@ -98,19 +101,19 @@ public class LDAPUserManager extends UserEntityManager
     }
 
     @Override
-    public void deleteUser(String userId)
+    public void deleteUser(final String userId)
     {
         throw new ActivitiException("LDAP user manager doesn't support deleting a user");
     }
 
     @Override
-    public List<User> findUserByQueryCriteria(UserQueryImpl query, Page page)
+    public List<User> findUserByQueryCriteria(final UserQueryImpl query, final Page page)
     {
-        System.out.println("findUserByQueryCriteria");
+        LOG.debug("findUserByQueryCriteria");
 
-        List<User> userList = new ArrayList<User>();
+        final List<User> userList = new ArrayList<User>();
 
-        StringBuilder searchQuery = new StringBuilder();
+        final StringBuilder searchQuery = new StringBuilder();
         if (StringUtils.isNotEmpty(query.getId()))
         {
             searchQuery.append("(&(cn=")
@@ -129,22 +132,22 @@ public class LDAPUserManager extends UserEntityManager
         {
             searchQuery.append("(&(cn=*)(objectclass=" + connectionParams.getLdapUserObject() + "))");
         }
-        System.out.println("searchQuery: " + searchQuery.toString());
+        LOG.debug("searchQuery: " + searchQuery.toString());
 
-        LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
+        final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
-            Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapUserBase(),
+            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapUserBase(),
                 searchQuery.toString(), SearchScope.ONELEVEL, "*");
             while (cursor.next())
             {
-                User user = new UserEntity();
-                SearchResultEntry response = (SearchResultEntry) cursor.get();
-                Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
+                final User user = new UserEntity();
+                final SearchResultEntry response = (SearchResultEntry) cursor.get();
+                final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
                 while (itEntry.hasNext())
                 {
-                    EntryAttribute attribute = itEntry.next();
-                    String key = attribute.getId();
+                    final EntryAttribute attribute = itEntry.next();
+                    final String key = attribute.getId();
                     if ("cn".equalsIgnoreCase(key))
                     {
                         user.setId(attribute.getString());
@@ -169,7 +172,7 @@ public class LDAPUserManager extends UserEntityManager
             cursor.close();
 
         }
-        catch (Exception e)
+        catch (final Exception e)
         {
             throw new ActivitiException("LDAP connection search failure", e);
         }
@@ -180,31 +183,31 @@ public class LDAPUserManager extends UserEntityManager
     }
 
     @Override
-    public long findUserCountByQueryCriteria(UserQueryImpl query)
+    public long findUserCountByQueryCriteria(final UserQueryImpl query)
     {
-        System.out.println("findUserCountByQueryCriteria");
+        LOG.debug("findUserCountByQueryCriteria");
         return findUserByQueryCriteria(query, null).size();
     }
 
     @Override
-    public Boolean checkPassword(String userId, String password)
+    public Boolean checkPassword(final String userId, final String password)
     {
-        System.out.println("checkPassword");
+        LOG.debug("checkPassword");
         boolean credentialsValid = false;
-        LdapConnection connection = new LdapConnection(connectionParams.getLdapServer(),
+        final LdapConnection connection = new LdapConnection(connectionParams.getLdapServer(),
             connectionParams.getLdapPort());
         try
         {
-            System.out.println("checkPassword: " + "cn=" + userId + "," + connectionParams.getLdapUserBase());
-            BindResponse response = connection.bind(
+            LOG.debug("checkPassword: " + "cn=" + userId + "," + connectionParams.getLdapUserBase());
+            final BindResponse response = connection.bind(
                 "cn=" + userId + "," + connectionParams.getLdapUserBase(), password);
-            System.out.println("result: " + response.getLdapResult().getResultCode());
+            LOG.debug("result: " + response.getLdapResult().getResultCode());
             if (response.getLdapResult().getResultCode() == ResultCodeEnum.SUCCESS)
             {
                 credentialsValid = true;
             }
         }
-        catch (Exception e)
+        catch (final Exception e)
         {
             throw new ActivitiException("LDAP connection bind failure", e);
 

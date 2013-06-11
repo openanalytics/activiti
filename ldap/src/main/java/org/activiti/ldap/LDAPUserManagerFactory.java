@@ -7,10 +7,9 @@ import org.activiti.engine.impl.persistence.entity.UserEntityManager;
 
 public class LDAPUserManagerFactory implements SessionFactory
 {
+    private final LDAPConnectionParams connectionParams;
 
-    private LDAPConnectionParams connectionParams;
-
-    public LDAPUserManagerFactory(LDAPConnectionParams params)
+    public LDAPUserManagerFactory(final LDAPConnectionParams params)
     {
         this.connectionParams = params;
     }
@@ -26,5 +25,4 @@ public class LDAPUserManagerFactory implements SessionFactory
     {
         return new LDAPUserManager(connectionParams);
     }
-
 }
