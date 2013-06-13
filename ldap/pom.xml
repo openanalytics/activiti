@@ -5,7 +5,7 @@
     <groupId>biemond</groupId>
     <artifactId>activiti-ldap</artifactId>
     <packaging>jar</packaging>
-    <version>1.0</version>
+    <version>1.1-SNAPSHOT</version>
 
     <properties>
         <activiti.version>5.12.1</activiti.version>
