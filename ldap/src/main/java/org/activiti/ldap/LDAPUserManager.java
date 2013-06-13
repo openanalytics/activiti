@@ -51,29 +51,31 @@ public class LDAPUserManager extends UserEntityManager
     @Override
     public UserEntity findUserById(final String userId)
     {
-        LOG.debug("findUserById: " + userId);
-
-        final UserEntity user = new UserEntity();
+        UserEntity user = null;
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
+
         try
         {
-            final String filter = "(&(cn=" + userId + "," + connectionParams.getLdapUserBase()
-                                  + ")(objectclass=" + connectionParams.getLdapUserObject() + "))";
-            LOG.debug("search: " + filter);
+            final String filter = "(&(cn=" + userId + ")(objectclass=" + connectionParams.getLdapUserObject()
+                                  + "))";
 
-            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
+            LOG.debug("findUserById: " + filter);
+
+            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapUserBase(),
                 filter, SearchScope.ONELEVEL, "*");
 
-            while (cursor.next())
+            if (cursor.next())
             {
+                user = new UserEntity();
+
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
+
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
                     setUserAttribute(attribute, user);
                 }
-                break;
             }
 
             cursor.close();
@@ -97,29 +99,24 @@ public class LDAPUserManager extends UserEntityManager
     @Override
     public List<User> findUserByQueryCriteria(final UserQueryImpl query, final Page page)
     {
-        LOG.debug("findUserByQueryCriteria");
-
         final List<User> userList = new ArrayList<User>();
 
-        final StringBuilder searchQuery = new StringBuilder();
+        final StringBuilder searchQuery = new StringBuilder("(&");
         if (StringUtils.isNotEmpty(query.getId()))
         {
-            searchQuery.append("(&(cn=")
-                .append(query.getId())
-                .append(")(objectclass=" + connectionParams.getLdapUserObject() + "))");
+            searchQuery.append("(cn=").append(query.getId()).append(")");
         }
         else if (StringUtils.isNotEmpty(query.getLastName()))
         {
-            searchQuery.append("(&(sn=")
-                .append(query.getLastName())
-                .append(")(objectclass=" + connectionParams.getLdapUserObject() + "))");
+            searchQuery.append("(sn=").append(query.getLastName()).append(")");
         }
         else
         {
-            searchQuery.append("(&(cn=*)(objectclass=" + connectionParams.getLdapUserObject() + "))");
+            searchQuery.append("(cn=*)");
         }
+        searchQuery.append("(objectclass=").append(connectionParams.getLdapUserObject()).append("))");
 
-        LOG.debug("searchQuery: " + searchQuery.toString());
+        LOG.debug("findUserByQueryCriteria: " + searchQuery.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
@@ -163,8 +160,6 @@ public class LDAPUserManager extends UserEntityManager
     @Override
     public Boolean checkPassword(final String userId, final String password)
     {
-        LOG.debug("checkPassword");
-
         final LdapConnection connection = new LdapConnection(connectionParams.getLdapServer(),
             connectionParams.getLdapPort());
 

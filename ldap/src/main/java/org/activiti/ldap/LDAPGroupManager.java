@@ -55,47 +55,43 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public List<Group> findGroupByQueryCriteria(final GroupQueryImpl query, final Page page)
     {
-        LOG.debug("findGroupByQueryCriteria");
-
         final List<Group> groupList = new ArrayList<Group>();
 
         // Query is a GroupQueryImpl instance
         final GroupQueryImpl groupQuery = query;
-        final StringBuilder searchQuery = new StringBuilder();
+        final StringBuilder filter = new StringBuilder("(&");
+
         if (StringUtils.isNotEmpty(groupQuery.getId()))
         {
-            searchQuery.append("(&(cn=")
-                .append(groupQuery.getId())
-                .append(")(objectclass=" + connectionParams.getLdapGroupObject() + "))");
+            filter.append("(cn=").append(groupQuery.getId()).append(")");
 
         }
         else if (StringUtils.isNotEmpty(groupQuery.getName()))
         {
-            searchQuery.append("(&(cn=")
-                .append(groupQuery.getName())
-                .append(")(objectclass=" + connectionParams.getLdapGroupObject() + "))");
+            filter.append("(cn=").append(groupQuery.getName()).append(")");
 
         }
         else if (StringUtils.isNotEmpty(groupQuery.getUserId()))
         {
-            searchQuery.append("(&(member= cn=")
+            filter.append("(member=cn=")
                 .append(groupQuery.getUserId())
-                .append(
-                    "," + connectionParams.getLdapUserBase() + ")(objectclass="
-                                    + connectionParams.getLdapGroupObject() + "))");
+                .append("," + connectionParams.getLdapUserBase() + ")");
         }
         else
         {
-            searchQuery.append("(&(cn=*)(objectclass=" + connectionParams.getLdapGroupObject() + "))");
+            filter.append("(cn=*)");
         }
 
-        LOG.debug("searchQuery: " + searchQuery.toString());
+        filter.append("(objectclass=").append(connectionParams.getLdapGroupObject()).append("))");
+
+        LOG.debug("findGroupByQueryCriteria: " + filter.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
-                searchQuery.toString(), SearchScope.ONELEVEL, "*");
+                filter.toString(), SearchScope.ONELEVEL, "*");
+
             while (cursor.next())
             {
                 final Group group = new GroupEntity();
@@ -149,25 +145,32 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public GroupEntity findGroupById(final String groupId)
     {
-        LOG.debug("findGroupById: " + groupId);
+        GroupEntity group = null;
 
-        final GroupEntity group = new GroupEntity();
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
+
         try
         {
+            final String filter = "(&(cn=" + groupId + ")(objectclass="
+                                  + connectionParams.getLdapGroupObject() + "))";
+
+            LOG.debug("findGroupById: " + filter);
+
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
-                "(&(cn=" + groupId + "," + connectionParams.getLdapUserBase() + ")(objectclass="
-                                + connectionParams.getLdapGroupObject() + "))", SearchScope.ONELEVEL, "*");
-            while (cursor.next())
+                filter, SearchScope.ONELEVEL, "*");
+
+            if (cursor.next())
             {
+                group = new GroupEntity();
+
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
+
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
                     setGroupAttributes(group, attribute);
                 }
-                break;
             }
 
             cursor.close();
@@ -187,17 +190,19 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public List<Group> findGroupsByUser(final String userId)
     {
-        LOG.debug("findGroupsByUser for user: " + userId);
         final List<Group> groupList = new ArrayList<Group>();
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
-            LOG.debug("search: " + "(member= cn=" + userId + "," + connectionParams.getLdapUserBase() + ")");
+            final String filter = "(&(member=cn=" + userId + "," + connectionParams.getLdapUserBase()
+                                  + ")(objectclass=" + connectionParams.getLdapGroupObject() + "))";
+
+            LOG.debug("findGroupsByUser: " + filter);
 
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
-                "(&(member= cn=" + userId + "," + connectionParams.getLdapUserBase() + ")(objectclass="
-                                + connectionParams.getLdapGroupObject() + "))", SearchScope.ONELEVEL, "*");
+                filter, SearchScope.ONELEVEL, "*");
+
             while (cursor.next())
             {
                 final Group group = new GroupEntity();
