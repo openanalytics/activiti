@@ -51,13 +51,13 @@ public class LDAPUserManager extends UserEntityManager
     @Override
     public UserEntity findUserById(final String userId)
     {
-        UserEntity user = null;
+        LDAPUserEntity user = null;
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
 
         try
         {
-            final String filter = "(&(cn=" + userId + ")(objectclass=" + connectionParams.getLdapUserObject()
-                                  + "))";
+            final String filter = "(&(" + connectionParams.getLdapUserIdAttribute() + "=" + userId
+                                  + ")(objectclass=" + connectionParams.getLdapUserObject() + "))";
 
             LOG.debug("findUserById: " + filter);
 
@@ -66,7 +66,7 @@ public class LDAPUserManager extends UserEntityManager
 
             if (cursor.next())
             {
-                user = new UserEntity();
+                user = new LDAPUserEntity();
 
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
@@ -104,7 +104,9 @@ public class LDAPUserManager extends UserEntityManager
         final StringBuilder searchQuery = new StringBuilder("(&");
         if (StringUtils.isNotEmpty(query.getId()))
         {
-            searchQuery.append("(cn=").append(query.getId()).append(")");
+            searchQuery.append("(" + connectionParams.getLdapUserIdAttribute() + "=")
+                .append(query.getId())
+                .append(")");
         }
         else if (StringUtils.isNotEmpty(query.getLastName()))
         {
@@ -112,7 +114,7 @@ public class LDAPUserManager extends UserEntityManager
         }
         else
         {
-            searchQuery.append("(cn=*)");
+            searchQuery.append("(" + connectionParams.getLdapUserIdAttribute() + "=*)");
         }
         searchQuery.append("(objectclass=").append(connectionParams.getLdapUserObject()).append("))");
 
@@ -125,7 +127,7 @@ public class LDAPUserManager extends UserEntityManager
                 searchQuery.toString(), SearchScope.ONELEVEL, "*");
             while (cursor.next())
             {
-                final User user = new UserEntity();
+                final LDAPUserEntity user = new LDAPUserEntity();
                 final SearchResultEntry response = (SearchResultEntry) cursor.get();
                 final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
 
@@ -160,12 +162,13 @@ public class LDAPUserManager extends UserEntityManager
     @Override
     public Boolean checkPassword(final String userId, final String password)
     {
+        final String userDn = getUserDn(userId);
+
         final LdapConnection connection = new LdapConnection(connectionParams.getLdapServer(),
             connectionParams.getLdapPort());
 
         try
         {
-            final String userDn = "cn=" + userId + "," + connectionParams.getLdapUserBase();
             LOG.debug("checkPassword: " + userDn);
 
             final BindResponse response = connection.bind(userDn, password);
@@ -183,11 +186,24 @@ public class LDAPUserManager extends UserEntityManager
         }
     }
 
-    private void setUserAttribute(final EntryAttribute attribute, final User user)
+    private String getUserDn(final String userId)
+    {
+        if ("cn".equalsIgnoreCase(connectionParams.getLdapUserIdAttribute()))
+        {
+            return "cn=" + userId + "," + connectionParams.getLdapUserBase();
+        }
+        else
+        {
+            final LDAPUserEntity user = (LDAPUserEntity) findUserById(userId);
+            return "cn=" + user.getCommonName() + "," + connectionParams.getLdapUserBase();
+        }
+    }
+
+    private void setUserAttribute(final EntryAttribute attribute, final LDAPUserEntity user)
         throws InvalidAttributeValueException
     {
         final String key = attribute.getId();
-        if ("cn".equalsIgnoreCase(key))
+        if (connectionParams.getLdapUserIdAttribute().equalsIgnoreCase(key))
         {
             user.setId(attribute.getString());
         }
@@ -202,6 +218,10 @@ public class LDAPUserManager extends UserEntityManager
         else if ("mail".equalsIgnoreCase(key))
         {
             user.setEmail(attribute.getString());
+        }
+        else if ("cn".equalsIgnoreCase(key))
+        {
+            user.setCommonName(attribute.getString());
         }
     }
 }

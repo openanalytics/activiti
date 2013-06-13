@@ -15,6 +15,8 @@ public class LDAPConnectionParams
     private String ldapGroupObject;
     private String ldapUserObject;
 
+    private String ldapUserIdAttribute = "cn";
+
     public String getLdapServer()
     {
         return ldapServer;
@@ -93,5 +95,15 @@ public class LDAPConnectionParams
     public void setLdapUserObject(final String ldapUserObject)
     {
         this.ldapUserObject = ldapUserObject;
+    }
+
+    public String getLdapUserIdAttribute()
+    {
+        return ldapUserIdAttribute;
+    }
+
+    public void setLdapUserIdAttribute(final String ldapUserIdAttribute)
+    {
+        this.ldapUserIdAttribute = ldapUserIdAttribute;
     }
 }
