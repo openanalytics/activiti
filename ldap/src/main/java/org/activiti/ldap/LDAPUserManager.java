@@ -33,7 +33,7 @@ public class LDAPUserManager extends UserEntityManager
 
     public LDAPUserManager(final LDAPConnectionParams params)
     {
-        this.connectionParams = params;
+        connectionParams = params;
     }
 
     @Override
@@ -193,21 +193,26 @@ public class LDAPUserManager extends UserEntityManager
 
     private String getUserDn(final String userId)
     {
-        if ("cn".equalsIgnoreCase(connectionParams.getLdapUserIdAttribute()))
-        {
-            return "cn=" + userId + "," + connectionParams.getLdapUserBase();
-        }
-        else
-        {
-            final LDAPUserEntity user = (LDAPUserEntity) findUserById(userId);
+        final String cn = getUserCn(userId);
 
-            if (user == null)
-            {
-                return null;
-            }
+        return cn == null ? null : "cn=" + cn + "," + connectionParams.getLdapUserBase();
+    }
 
-            return "cn=" + user.getCommonName() + "," + connectionParams.getLdapUserBase();
+    protected String getUserCn(final String userId)
+    {
+        if (connectionParams.isCommonNameUserId())
+        {
+            return userId;
         }
+
+        final LDAPUserEntity user = (LDAPUserEntity) findUserById(userId);
+
+        if (user == null)
+        {
+            return null;
+        }
+
+        return user.getCommonName();
     }
 
     private void setUserAttribute(final EntryAttribute attribute, final LDAPUserEntity user)

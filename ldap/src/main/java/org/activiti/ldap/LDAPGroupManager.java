@@ -28,10 +28,12 @@ public class LDAPGroupManager extends GroupEntityManager
     private static final Log LOG = LogFactory.getLog(LDAPGroupManager.class);
 
     private final LDAPConnectionParams connectionParams;
+    private final LDAPUserManager ldapUserManager;
 
     public LDAPGroupManager(final LDAPConnectionParams params)
     {
-        this.connectionParams = params;
+        connectionParams = params;
+        ldapUserManager = new LDAPUserManager(params);
     }
 
     @Override
@@ -73,9 +75,18 @@ public class LDAPGroupManager extends GroupEntityManager
         }
         else if (StringUtils.isNotEmpty(groupQuery.getUserId()))
         {
-            filter.append("(member=cn=")
-                .append(groupQuery.getUserId())
-                .append("," + connectionParams.getLdapUserBase() + ")");
+            final String userCn = ldapUserManager.getUserCn(groupQuery.getUserId());
+
+            if (userCn == null)
+            {
+                return groupList;
+            }
+
+            filter.append("(")
+                .append(connectionParams.getLdapGroupMemberAttribute())
+                .append("=")
+                .append(userCn)
+                .append(")");
         }
         else
         {
@@ -103,7 +114,6 @@ public class LDAPGroupManager extends GroupEntityManager
                     final String key = attribute.getId();
                     if ("cn".equalsIgnoreCase(key))
                     {
-                        // LOG.debug("atrribute: "+attribute.getString());
                         group.setId(attribute.getString());
                         group.setName(attribute.getString());
                         if (attribute.getString().equalsIgnoreCase("user")
@@ -192,10 +202,16 @@ public class LDAPGroupManager extends GroupEntityManager
     {
         final List<Group> groupList = new ArrayList<Group>();
 
+        final String userCn = ldapUserManager.getUserCn(userId);
+        if (userCn == null)
+        {
+            return groupList;
+        }
+
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
         {
-            final String filter = "(&(member=cn=" + userId + "," + connectionParams.getLdapUserBase()
+            final String filter = "(&(" + connectionParams.getLdapGroupMemberAttribute() + "=" + userCn
                                   + ")(objectclass=" + connectionParams.getLdapGroupObject() + "))";
 
             LOG.debug("findGroupsByUser: " + filter);

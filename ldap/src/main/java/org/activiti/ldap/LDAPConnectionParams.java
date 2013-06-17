@@ -16,6 +16,12 @@ public class LDAPConnectionParams
     private String ldapUserObject;
 
     private String ldapUserIdAttribute = "cn";
+    private String ldapGroupMemberAttribute = "member";
+
+    public boolean isCommonNameUserId()
+    {
+        return "cn".equalsIgnoreCase(ldapUserIdAttribute);
+    }
 
     public String getLdapServer()
     {
@@ -105,5 +111,15 @@ public class LDAPConnectionParams
     public void setLdapUserIdAttribute(final String ldapUserIdAttribute)
     {
         this.ldapUserIdAttribute = ldapUserIdAttribute;
+    }
+
+    public void setLdapGroupMemberAttribute(final String ldapGroupMemberAttribute)
+    {
+        this.ldapGroupMemberAttribute = ldapGroupMemberAttribute;
+    }
+
+    public String getLdapGroupMemberAttribute()
+    {
+        return ldapGroupMemberAttribute;
     }
 }
