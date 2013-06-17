@@ -164,6 +164,11 @@ public class LDAPUserManager extends UserEntityManager
     {
         final String userDn = getUserDn(userId);
 
+        if (StringUtils.isBlank(userDn))
+        {
+            return false;
+        }
+
         final LdapConnection connection = new LdapConnection(connectionParams.getLdapServer(),
             connectionParams.getLdapPort());
 
@@ -195,6 +200,12 @@ public class LDAPUserManager extends UserEntityManager
         else
         {
             final LDAPUserEntity user = (LDAPUserEntity) findUserById(userId);
+
+            if (user == null)
+            {
+                return null;
+            }
+
             return "cn=" + user.getCommonName() + "," + connectionParams.getLdapUserBase();
         }
     }
