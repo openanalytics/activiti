@@ -2,14 +2,14 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>biemond</groupId>
+    <parent>
+        <groupId>biemond</groupId>
+        <artifactId>activiti-parent</artifactId>
+        <version>1.1-SNAPSHOT</version>
+    </parent>
+
     <artifactId>activiti-ldap</artifactId>
     <packaging>jar</packaging>
-    <version>1.1-SNAPSHOT</version>
-
-    <properties>
-        <activiti.version>5.12.1</activiti.version>
-    </properties>
 
     <repositories>
         <repository>

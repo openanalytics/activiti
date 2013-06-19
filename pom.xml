@@ -5,7 +5,11 @@
     <groupId>biemond</groupId>
     <artifactId>activiti-parent</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1-SNAPSHOT</version>
+
+    <properties>
+        <activiti.version>5.13</activiti.version>
+    </properties>
 
     <modules>
         <module>ldap</module>

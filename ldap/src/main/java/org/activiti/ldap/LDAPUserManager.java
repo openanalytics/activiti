@@ -4,15 +4,18 @@ package org.activiti.ldap;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import javax.naming.directory.InvalidAttributeValueException;
+import java.util.Map;
 
 import org.activiti.engine.ActivitiException;
 import org.activiti.engine.identity.User;
+import org.activiti.engine.identity.UserQuery;
 import org.activiti.engine.impl.Page;
 import org.activiti.engine.impl.UserQueryImpl;
+import org.activiti.engine.impl.context.Context;
+import org.activiti.engine.impl.interceptor.Session;
+import org.activiti.engine.impl.persistence.entity.IdentityInfoEntity;
 import org.activiti.engine.impl.persistence.entity.UserEntity;
-import org.activiti.engine.impl.persistence.entity.UserEntityManager;
+import org.activiti.engine.impl.persistence.entity.UserIdentityManager;
 import org.apache.commons.lang.StringUtils;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.message.BindResponse;
@@ -22,18 +25,12 @@ import org.apache.directory.shared.ldap.cursor.Cursor;
 import org.apache.directory.shared.ldap.entry.EntryAttribute;
 import org.apache.directory.shared.ldap.filter.SearchScope;
 import org.apache.directory.shared.ldap.message.ResultCodeEnum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class LDAPUserManager extends UserEntityManager
+public class LDAPUserManager extends AbstractLDAPManager implements UserIdentityManager, Session
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LDAPUserManager.class);
-
-    private final LDAPConnectionParams connectionParams;
-
     public LDAPUserManager(final LDAPConnectionParams params)
     {
-        connectionParams = params;
+        super(params);
     }
 
     @Override
@@ -49,51 +46,71 @@ public class LDAPUserManager extends UserEntityManager
     }
 
     @Override
-    public UserEntity findUserById(final String userId)
+    public void updateUser(final UserEntity updatedUser)
     {
-        LDAPUserEntity user = null;
-        final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
-
-        try
-        {
-            final String filter = "(&(" + connectionParams.getLdapUserIdAttribute() + "=" + userId
-                                  + ")(objectclass=" + connectionParams.getLdapUserObject() + "))";
-
-            LOGGER.debug("findUserById: " + filter);
-
-            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapUserBase(),
-                filter, SearchScope.ONELEVEL, "*");
-
-            if (cursor.next())
-            {
-                user = new LDAPUserEntity();
-
-                final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
-
-                while (itEntry.hasNext())
-                {
-                    final EntryAttribute attribute = itEntry.next();
-                    setUserAttribute(attribute, user);
-                }
-            }
-
-            cursor.close();
-        }
-        catch (final Exception e)
-        {
-            throw new ActivitiException("LDAP connection search failure", e);
-        }
-
-        LDAPConnectionUtil.closeConnection(connection);
-
-        return user;
+        throw new ActivitiException("LDAP user manager doesn't support updating a user");
     }
 
     @Override
     public void deleteUser(final String userId)
     {
         throw new ActivitiException("LDAP user manager doesn't support deleting a user");
+    }
+
+    @Override
+    public void flush()
+    {
+        // NOOP
+    }
+
+    @Override
+    public void close()
+    {
+        // NOOP
+    }
+
+    @Override
+    public UserQuery createNewUserQuery()
+    {
+        return new UserQueryImpl(Context.getProcessEngineConfiguration().getCommandExecutorTxRequired());
+    }
+
+    @Override
+    public IdentityInfoEntity findUserInfoByUserIdAndKey(final String userId, final String key)
+    {
+        throw new ActivitiException(
+            "LDAP user manager doesn't support finding user info by user id and key (" + userId + ", " + key
+                            + ")");
+    }
+
+    @Override
+    public List<String> findUserInfoKeysByUserIdAndType(final String userId, final String type)
+    {
+        throw new ActivitiException(
+            "LDAP user manager doesn't support finding user info keys by user id and type (" + userId + ", "
+                            + type + ")");
+    }
+
+    @Override
+    public List<User> findPotentialStarterUsers(final String proceDefId)
+    {
+        throw new ActivitiException("LDAP user manager doesn't support finding potential starter users ("
+                                    + proceDefId + ")");
+    }
+
+    @Override
+    public List<User> findUsersByNativeQuery(final Map<String, Object> parameterMap,
+                                             final int firstResult,
+                                             final int maxResults)
+    {
+        throw new ActivitiException("LDAP group manager doesn't support finding users by native query: "
+                                    + parameterMap);
+    }
+
+    @Override
+    public long findUserCountByNativeQuery(final Map<String, Object> parameterMap)
+    {
+        return findUsersByNativeQuery(parameterMap, 0, -1).size();
     }
 
     @Override
@@ -188,56 +205,6 @@ public class LDAPUserManager extends UserEntityManager
         finally
         {
             LDAPConnectionUtil.closeConnection(connection);
-        }
-    }
-
-    private String getUserDn(final String userId)
-    {
-        final String cn = getUserCn(userId);
-
-        return cn == null ? null : "cn=" + cn + "," + connectionParams.getLdapUserBase();
-    }
-
-    protected String getUserCn(final String userId)
-    {
-        if (connectionParams.isCommonNameUserId())
-        {
-            return userId;
-        }
-
-        final LDAPUserEntity user = (LDAPUserEntity) findUserById(userId);
-
-        if (user == null)
-        {
-            return null;
-        }
-
-        return user.getCommonName();
-    }
-
-    private void setUserAttribute(final EntryAttribute attribute, final LDAPUserEntity user)
-        throws InvalidAttributeValueException
-    {
-        final String key = attribute.getId();
-        if (connectionParams.getLdapUserIdAttribute().equalsIgnoreCase(key))
-        {
-            user.setId(attribute.getString());
-        }
-        else if ("sn".equalsIgnoreCase(key))
-        {
-            user.setLastName(attribute.getString());
-        }
-        else if ("givenName".equalsIgnoreCase(key))
-        {
-            user.setFirstName(attribute.getString());
-        }
-        else if ("mail".equalsIgnoreCase(key))
-        {
-            user.setEmail(attribute.getString());
-        }
-        else if ("cn".equalsIgnoreCase(key))
-        {
-            user.setCommonName(attribute.getString());
         }
     }
 }

@@ -4,15 +4,17 @@ package org.activiti.ldap;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import javax.naming.directory.InvalidAttributeValueException;
+import java.util.Map;
 
 import org.activiti.engine.ActivitiException;
 import org.activiti.engine.identity.Group;
+import org.activiti.engine.identity.GroupQuery;
 import org.activiti.engine.impl.GroupQueryImpl;
 import org.activiti.engine.impl.Page;
+import org.activiti.engine.impl.context.Context;
+import org.activiti.engine.impl.interceptor.Session;
 import org.activiti.engine.impl.persistence.entity.GroupEntity;
-import org.activiti.engine.impl.persistence.entity.GroupEntityManager;
+import org.activiti.engine.impl.persistence.entity.GroupIdentityManager;
 import org.apache.commons.lang.StringUtils;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.message.SearchResponse;
@@ -20,20 +22,12 @@ import org.apache.directory.ldap.client.api.message.SearchResultEntry;
 import org.apache.directory.shared.ldap.cursor.Cursor;
 import org.apache.directory.shared.ldap.entry.EntryAttribute;
 import org.apache.directory.shared.ldap.filter.SearchScope;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class LDAPGroupManager extends GroupEntityManager
+public class LDAPGroupManager extends AbstractLDAPManager implements GroupIdentityManager, Session
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LDAPGroupManager.class);
-
-    private final LDAPConnectionParams connectionParams;
-    private final LDAPUserManager ldapUserManager;
-
     public LDAPGroupManager(final LDAPConnectionParams params)
     {
-        connectionParams = params;
-        ldapUserManager = new LDAPUserManager(params);
+        super(params);
     }
 
     @Override
@@ -49,9 +43,48 @@ public class LDAPGroupManager extends GroupEntityManager
     }
 
     @Override
+    public void updateGroup(final GroupEntity updatedGroup)
+    {
+        throw new ActivitiException("LDAP group manager doesn't support updating a group");
+    }
+
+    @Override
     public void deleteGroup(final String groupId)
     {
         throw new ActivitiException("LDAP group manager doesn't support deleting a new group");
+    }
+
+    @Override
+    public void flush()
+    {
+        // NOOP
+    }
+
+    @Override
+    public void close()
+    {
+        // NOOP
+    }
+
+    @Override
+    public GroupQuery createNewGroupQuery()
+    {
+        return new GroupQueryImpl(Context.getProcessEngineConfiguration().getCommandExecutorTxRequired());
+    }
+
+    @Override
+    public List<Group> findGroupsByNativeQuery(final Map<String, Object> parameterMap,
+                                               final int firstResult,
+                                               final int maxResults)
+    {
+        throw new ActivitiException("LDAP group manager doesn't support finding groups by native query: "
+                                    + parameterMap);
+    }
+
+    @Override
+    public long findGroupCountByNativeQuery(final Map<String, Object> parameterMap)
+    {
+        return findGroupsByNativeQuery(parameterMap, 0, -1).size();
     }
 
     @Override
@@ -75,7 +108,7 @@ public class LDAPGroupManager extends GroupEntityManager
         }
         else if (StringUtils.isNotEmpty(groupQuery.getUserId()))
         {
-            final String userCn = ldapUserManager.getUserCn(groupQuery.getUserId());
+            final String userCn = getUserCn(groupQuery.getUserId());
 
             if (userCn == null)
             {
@@ -135,126 +168,5 @@ public class LDAPGroupManager extends GroupEntityManager
     {
         LOGGER.debug("findGroupCountByQueryCriteria");
         return findGroupByQueryCriteria(query, null).size();
-    }
-
-    @Override
-    public GroupEntity findGroupById(final String groupId)
-    {
-        GroupEntity group = null;
-
-        final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
-
-        try
-        {
-            final String filter = "(&(cn=" + groupId + ")(objectclass="
-                                  + connectionParams.getLdapGroupObject() + "))";
-
-            LOGGER.debug("findGroupById: " + filter);
-
-            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
-                filter, SearchScope.ONELEVEL, "*");
-
-            if (cursor.next())
-            {
-                group = new GroupEntity();
-
-                final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
-
-                while (itEntry.hasNext())
-                {
-                    final EntryAttribute attribute = itEntry.next();
-                    setGroupAttributes(group, attribute);
-                }
-            }
-
-            cursor.close();
-
-        }
-        catch (final Exception e)
-        {
-            throw new ActivitiException("LDAP connection search failure", e);
-        }
-
-        LDAPConnectionUtil.closeConnection(connection);
-
-        return group;
-
-    }
-
-    @Override
-    public List<Group> findGroupsByUser(final String userId)
-    {
-        final List<Group> groupList = new ArrayList<Group>();
-
-        final String userCn = ldapUserManager.getUserCn(userId);
-        if (userCn == null)
-        {
-            return groupList;
-        }
-
-        final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
-        try
-        {
-            final String filter = "(&(" + connectionParams.getLdapGroupMemberAttribute() + "=" + userCn
-                                  + ")(objectclass=" + connectionParams.getLdapGroupObject() + "))";
-
-            LOGGER.debug("findGroupsByUser: " + filter);
-
-            final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
-                filter, SearchScope.ONELEVEL, "*");
-
-            while (cursor.next())
-            {
-                final Group group = new GroupEntity();
-                final SearchResultEntry response = (SearchResultEntry) cursor.get();
-                final Iterator<EntryAttribute> itEntry = response.getEntry().iterator();
-                while (itEntry.hasNext())
-                {
-                    final EntryAttribute attribute = itEntry.next();
-                    setGroupAttributes(group, attribute);
-                }
-
-                groupList.add(group);
-            }
-
-            cursor.close();
-
-        }
-        catch (final Exception e)
-        {
-            throw new ActivitiException("LDAP connection search failure", e);
-        }
-
-        LDAPConnectionUtil.closeConnection(connection);
-
-        return groupList;
-    }
-
-    private void setGroupAttributes(final Group group, final EntryAttribute attribute)
-        throws InvalidAttributeValueException
-    {
-        final String key = attribute.getId();
-        if ("cn".equalsIgnoreCase(key))
-        {
-            final String groupCN = attribute.getString();
-            group.setName(groupCN);
-
-            if (connectionParams.getActivitiUserGroupCns().contains(groupCN))
-            {
-                group.setId(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE_USER);
-                group.setType(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE);
-            }
-            else if (connectionParams.getActivitiAdminGroupCns().contains(groupCN))
-            {
-                group.setId(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE_ADMIN);
-                group.setType(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE);
-            }
-            else
-            {
-                group.setId(groupCN);
-                group.setType("assignment");
-            }
-        }
     }
 }
