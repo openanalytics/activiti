@@ -14,18 +14,18 @@ import org.activiti.engine.impl.Page;
 import org.activiti.engine.impl.persistence.entity.GroupEntity;
 import org.activiti.engine.impl.persistence.entity.GroupEntityManager;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.message.SearchResponse;
 import org.apache.directory.ldap.client.api.message.SearchResultEntry;
 import org.apache.directory.shared.ldap.cursor.Cursor;
 import org.apache.directory.shared.ldap.entry.EntryAttribute;
 import org.apache.directory.shared.ldap.filter.SearchScope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LDAPGroupManager extends GroupEntityManager
 {
-    private static final Log LOG = LogFactory.getLog(LDAPGroupManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LDAPGroupManager.class);
 
     private final LDAPConnectionParams connectionParams;
     private final LDAPUserManager ldapUserManager;
@@ -95,7 +95,7 @@ public class LDAPGroupManager extends GroupEntityManager
 
         filter.append("(objectclass=").append(connectionParams.getLdapGroupObject()).append("))");
 
-        LOG.debug("findGroupByQueryCriteria: " + filter.toString());
+        LOGGER.debug("findGroupByQueryCriteria: " + filter.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
@@ -111,22 +111,7 @@ public class LDAPGroupManager extends GroupEntityManager
                 while (itEntry.hasNext())
                 {
                     final EntryAttribute attribute = itEntry.next();
-                    final String key = attribute.getId();
-                    if ("cn".equalsIgnoreCase(key))
-                    {
-                        group.setId(attribute.getString());
-                        group.setName(attribute.getString());
-                        if (attribute.getString().equalsIgnoreCase("user")
-                            || attribute.getString().equalsIgnoreCase("admin"))
-                        {
-                            group.setType("security-role");
-                        }
-                        else
-                        {
-                            group.setType("assignment");
-                        }
-
-                    }
+                    setGroupAttributes(group, attribute);
                 }
 
                 groupList.add(group);
@@ -148,7 +133,7 @@ public class LDAPGroupManager extends GroupEntityManager
     @Override
     public long findGroupCountByQueryCriteria(final GroupQueryImpl query)
     {
-        LOG.debug("findGroupCountByQueryCriteria");
+        LOGGER.debug("findGroupCountByQueryCriteria");
         return findGroupByQueryCriteria(query, null).size();
     }
 
@@ -164,7 +149,7 @@ public class LDAPGroupManager extends GroupEntityManager
             final String filter = "(&(cn=" + groupId + ")(objectclass="
                                   + connectionParams.getLdapGroupObject() + "))";
 
-            LOG.debug("findGroupById: " + filter);
+            LOGGER.debug("findGroupById: " + filter);
 
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
                 filter, SearchScope.ONELEVEL, "*");
@@ -214,7 +199,7 @@ public class LDAPGroupManager extends GroupEntityManager
             final String filter = "(&(" + connectionParams.getLdapGroupMemberAttribute() + "=" + userCn
                                   + ")(objectclass=" + connectionParams.getLdapGroupObject() + "))";
 
-            LOG.debug("findGroupsByUser: " + filter);
+            LOGGER.debug("findGroupsByUser: " + filter);
 
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapGroupBase(),
                 filter, SearchScope.ONELEVEL, "*");
@@ -252,15 +237,22 @@ public class LDAPGroupManager extends GroupEntityManager
         final String key = attribute.getId();
         if ("cn".equalsIgnoreCase(key))
         {
-            group.setId(attribute.getString());
-            group.setName(attribute.getString());
-            if (attribute.getString().equalsIgnoreCase("user")
-                || attribute.getString().equalsIgnoreCase("admin"))
+            final String groupCN = attribute.getString();
+            group.setName(groupCN);
+
+            if (connectionParams.getActivitiUserGroupCns().contains(groupCN))
             {
-                group.setType("security-role");
+                group.setId(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE_USER);
+                group.setType(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE);
+            }
+            else if (connectionParams.getActivitiAdminGroupCns().contains(groupCN))
+            {
+                group.setId(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE_ADMIN);
+                group.setType(LDAPConnectionParams.ACTIVITI_SECURITY_ROLE);
             }
             else
             {
+                group.setId(groupCN);
                 group.setType("assignment");
             }
         }

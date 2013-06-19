@@ -14,8 +14,6 @@ import org.activiti.engine.impl.UserQueryImpl;
 import org.activiti.engine.impl.persistence.entity.UserEntity;
 import org.activiti.engine.impl.persistence.entity.UserEntityManager;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.message.BindResponse;
 import org.apache.directory.ldap.client.api.message.SearchResponse;
@@ -24,10 +22,12 @@ import org.apache.directory.shared.ldap.cursor.Cursor;
 import org.apache.directory.shared.ldap.entry.EntryAttribute;
 import org.apache.directory.shared.ldap.filter.SearchScope;
 import org.apache.directory.shared.ldap.message.ResultCodeEnum;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LDAPUserManager extends UserEntityManager
 {
-    private static final Log LOG = LogFactory.getLog(LDAPUserManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LDAPUserManager.class);
 
     private final LDAPConnectionParams connectionParams;
 
@@ -59,7 +59,7 @@ public class LDAPUserManager extends UserEntityManager
             final String filter = "(&(" + connectionParams.getLdapUserIdAttribute() + "=" + userId
                                   + ")(objectclass=" + connectionParams.getLdapUserObject() + "))";
 
-            LOG.debug("findUserById: " + filter);
+            LOGGER.debug("findUserById: " + filter);
 
             final Cursor<SearchResponse> cursor = connection.search(connectionParams.getLdapUserBase(),
                 filter, SearchScope.ONELEVEL, "*");
@@ -118,7 +118,7 @@ public class LDAPUserManager extends UserEntityManager
         }
         searchQuery.append("(objectclass=").append(connectionParams.getLdapUserObject()).append("))");
 
-        LOG.debug("findUserByQueryCriteria: " + searchQuery.toString());
+        LOGGER.debug("findUserByQueryCriteria: " + searchQuery.toString());
 
         final LdapConnection connection = LDAPConnectionUtil.openConnection(connectionParams);
         try
@@ -155,7 +155,7 @@ public class LDAPUserManager extends UserEntityManager
     @Override
     public long findUserCountByQueryCriteria(final UserQueryImpl query)
     {
-        LOG.debug("findUserCountByQueryCriteria");
+        LOGGER.debug("findUserCountByQueryCriteria");
         return findUserByQueryCriteria(query, null).size();
     }
 
@@ -174,10 +174,10 @@ public class LDAPUserManager extends UserEntityManager
 
         try
         {
-            LOG.debug("checkPassword: " + userDn);
+            LOGGER.debug("checkPassword: " + userDn);
 
             final BindResponse response = connection.bind(userDn, password);
-            LOG.debug("result: " + response.getLdapResult().getResultCode());
+            LOGGER.debug("result: " + response.getLdapResult().getResultCode());
 
             return (response.getLdapResult().getResultCode() == ResultCodeEnum.SUCCESS);
         }

@@ -3,13 +3,13 @@ package org.activiti.ldap;
 
 import org.activiti.engine.ActivitiException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.directory.ldap.client.api.LdapConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LDAPConnectionUtil
 {
-    private static final Log LOG = LogFactory.getLog(LDAPConnectionUtil.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LDAPConnectionUtil.class);
 
     public static LdapConnection openConnection(final LDAPConnectionParams connectionParams)
     {
@@ -43,7 +43,7 @@ public class LDAPConnectionUtil
         }
         catch (final Exception e)
         {
-            LOG.error("Failed to unbind: " + connection, e);
+            LOGGER.error("Failed to unbind: " + connection, e);
         }
 
         try
@@ -52,7 +52,7 @@ public class LDAPConnectionUtil
         }
         catch (final Exception e)
         {
-            LOG.error("Failed to close: " + connection, e);
+            LOGGER.error("Failed to close: " + connection, e);
         }
     }
 }
